@@ -33,10 +33,5 @@ pip3 install -r requirements.txt
     ```
     python3 papermc_downloader.py
     ```
-
-Replace `VERSION` with one of the avalable versions listed when using the `--list-versions` flag.
-
-Replace `BUILD` with one of the avalable builds listed when using the `--version VERSION --list-builds`.
-
 ## Licence
 [GNU General Public License v3.0](https://github.com/DJHero2903/papermc_downloader/blob/main/LICENSE)
