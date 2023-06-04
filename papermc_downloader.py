@@ -21,7 +21,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import requests
-from tqdm import tqdm
+from rich.console import Console
+from rich.progress import Progress
+from rich.prompt import Prompt, Confirm
+from rich.table import Table
 
 
 def get_version(api_base: str) -> str:
@@ -29,69 +32,86 @@ def get_version(api_base: str) -> str:
     Returns a chosen version of paper that are available for download.
     """
     request = requests.get(
-        url=f"{api_base}/projects/paper", timeout=60, allow_redirects=True
+        url=f"{api_base}/projects/paper",
+        timeout=60,
+        allow_redirects=True,
     )
-    data_list = json.loads(request.text).get("versions")
-    data_str = " ".join(map(str, data_list))
-    print(data_str)
-    chosen_version = str(input("\nChoose one of the above versions to download. "))
+    table = Table()
+    table.add_column("Available versions", style="magenta")
 
-    while chosen_version not in data_list:
-        print("\n", data_str)
-        chosen_version = str(input("\nChoose one of the above versions to download. "))
+    data_list = json.loads(request.text).get("versions")
+    for i in data_list:
+        if i != data_list[-1]:
+            table.add_row(i)
+        else:
+            table.add_row(i, style="cyan")
+    console.print(table)
+
+    chosen_version = Prompt.ask(
+        "Choose a version of paper",
+        choices=data_list,
+        show_choices=False,
+        default=data_list[-1],
+    )
 
     return chosen_version
 
 
-def get_build(api_base: str, version: str) -> int:
+def get_build(api_base: str, version: str) -> str:
     """
     Returns the selected build for a given version of papermc that are available for download.
     """
-
     request = requests.get(
         url=f"{api_base}/projects/paper/versions/{version}",
         timeout=60,
         allow_redirects=True,
     )
-    data_list = json.loads(request.text).get("builds")
-    data_str = " ".join(map(str, data_list))
-    print(data_str)
-    chosen_build = int(input("\nChoose one of the above builds to download. "))
 
-    while chosen_build not in data_list:
-        print("\n", data_str)
-        chosen_build = int(input("\nChoose one of the above builds to download. "))
+    table = Table()
+    table.add_column("Available builds", style="magenta")
+
+    data_list = json.loads(request.text).get("builds")
+    for build_number in data_list:
+        if build_number != data_list[-1]:
+            table.add_row(str(build_number))
+        else:
+            table.add_row(str(build_number), style="cyan")
+    console.print(table)
+
+    choices = [str(i) for i in data_list]
+
+    chosen_build = Prompt.ask(
+        f"Choose a build of paper {version}",
+        choices=choices,
+        show_choices=False,
+        default=choices[-1],
+    )
 
     return chosen_build
 
 
 def download_jar(url: str, file_name: str, chunk_size=1024):
     """
-    Download the selected papermc jar.
-    Source: https://gist.github.com/yanqd0/c13ed29e29432e3cf3e7c38467f42f51
-
-    Changes that I have made to the source:
-    1. Change function name from 'download' to 'download_jar',
-    2. Added a timeout to the request,
-    3. Rename 'resp' to 'request',
-    3. Rename 'fname' to 'file_name',
-    4. Rename 'bar' to 'progress_bar'.
+    Download jar with progress bar.
     """
     request = requests.get(url, stream=True, timeout=60)
     total = int(request.headers.get("content-length", 0))
-    with open(file_name, "wb") as file, tqdm(
-        desc=file_name,
-        total=total,
-        unit="iB",
-        unit_scale=True,
-        unit_divisor=1024,
-    ) as progress_bar:
-        for data in request.iter_content(chunk_size=chunk_size):
-            size = file.write(data)
-            progress_bar.update(size)
+    with Progress() as progress:
+        download_task = progress.add_task(
+            f"[yellow]Downloading {file_name}", total=total
+        )
+
+        with open(file_name, "wb") as file:
+            for data in request.iter_content(chunk_size=chunk_size):
+                size = file.write(data)
+
+                if not progress.finished:
+                    progress.update(download_task, advance=size)
 
 
 if __name__ == "__main__":
+    console = Console()
+
     API_BASE = "https://api.papermc.io/v2/"
 
     VERSION = get_version(api_base=API_BASE)
@@ -100,6 +120,8 @@ if __name__ == "__main__":
 
     DOWNLOAD_URL = f"{API_BASE}/projects/paper/versions/{VERSION}/builds/{BUILD}/downloads/{JAR_FILE}"
 
-    print(f"\nDownloading {JAR_FILE}\n")
-    download_jar(url=DOWNLOAD_URL, file_name=JAR_FILE)
-    print("\nDownload complete!")
+    if Confirm.ask(f"Do you wish to download {JAR_FILE}?", default="y"):
+        download_jar(url=DOWNLOAD_URL, file_name=JAR_FILE)
+        console.print("[green]Download complete!")
+    else:
+        console.print("[red]Download canceled!")
