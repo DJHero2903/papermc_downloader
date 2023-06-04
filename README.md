@@ -38,7 +38,6 @@ pip3 install -r requirements.txt
 
     ```
     python3 papermc_downloader.py
-
     ```
 
 ## Highlighting
