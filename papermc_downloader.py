@@ -120,8 +120,17 @@ if __name__ == "__main__":
 
     DOWNLOAD_URL = f"{API_BASE}/projects/paper/versions/{VERSION}/builds/{BUILD}/downloads/{JAR_FILE}"
 
-    if Confirm.ask(f"Do you wish to download {JAR_FILE}?", default="y"):
-        download_jar(url=DOWNLOAD_URL, file_name=JAR_FILE)
+    if Confirm.ask(
+        f"Do you wish to download paper version {VERSION} build {BUILD}?", default="y"
+    ):
+        file_name = Prompt.ask(
+            "Choose a name for the downloaded jar file.", default=JAR_FILE
+        )
+
+        if not file_name.endswith(".jar"):
+            file_name = f"{file_name}.jar"
+
+        download_jar(url=DOWNLOAD_URL, file_name=file_name)
         console.print("[green]Download complete!")
     else:
         console.print("[red]Download canceled!")
